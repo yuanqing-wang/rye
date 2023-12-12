@@ -28,9 +28,22 @@ class Dampening(torch.nn.Module):
         ):
         y = self.fc(y).unsqueeze(-2)
         return x * y
-    )
+    
 
-class RyeCell(torch.nn.Module):
+
+class RyeRNN(torch.nn.Module):
+    def __init__(
+            self,
+            input_size: int,
+            hidden_size: int,
+            num_channels: int,
+    ):
+        super().__init__()
+        self.yi = torch.nn.Linear(input_size, hidden_size)
+        self.yh = torch.nn.Linear(hidden_size, hidden_size)
+        self.x = DotProductProjection(1+num_channels, hidden_size)
+
+class RyeGRU(torch.nn.Module):
     def __init__(
             self,
             input_size: int,
