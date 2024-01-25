@@ -1,2 +1,2 @@
 # rye
-Recurrent equivariant neural networks
+Recurrently equivariant neural networks
