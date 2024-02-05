@@ -1,5 +1,7 @@
+from ast import Not
 from typing import Optional
 import torch
+from typing import Tuple
 
 class DotProductProjection(torch.nn.Module):
     def __init__(self, input_size: int, output_size: int):
@@ -10,7 +12,7 @@ class DotProductProjection(torch.nn.Module):
     def forward(
             self, 
             x0: torch.Tensor,
-            x1: Optional[torch.Tensor],
+            x1: Optional[torch.Tensor] = None,
         ):
         if x1 is None:
             x1 = x0
@@ -30,8 +32,17 @@ class Dampening(torch.nn.Module):
         return x * y
     
 
+class RyeLayer(torch.nn.Module):
+    def forward(
+            self,
+            invariant_input: torch.Tensor, # (N, input_size)
+            equivariant_input: torch.Tensor, # (N, 3)
+            invariant_hidden: torch.Tensor, # (N, hidden_size)
+            equivariant_hidden: torch.Tensor, # (N, 3, num_channels)
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        raise NotImplementedError
 
-class RyeRNN(torch.nn.Module):
+class RyeElman(torch.nn.Module):
     def __init__(
             self,
             input_size: int,
@@ -39,10 +50,90 @@ class RyeRNN(torch.nn.Module):
             num_channels: int,
     ):
         super().__init__()
-        self.yi = torch.nn.Linear(input_size, hidden_size)
-        self.yh = torch.nn.Linear(hidden_size, hidden_size)
-        self.x = DotProductProjection(1+num_channels, hidden_size)
+        self.equivariant_to_invariant = DotProductProjection(
+            1 + num_channels, 
+            hidden_size,
+        )
 
+        self.invariant_to_invariant = torch.nn.Linear(
+            input_size + hidden_size, 
+            hidden_size,
+        )
+
+        self.equivariant_to_equivariant = torch.nn.Linear(
+            1 + num_channels, 
+            num_channels,
+            bias=False,
+        )
+
+        self.invariant_to_equivariant = Dampening(
+            hidden_size + input_size, 
+            num_channels,
+        )
+
+        self.equivariant_output = torch.nn.Linear(
+            num_channels,
+            1,
+        )
+
+        self.invariant_output = torch.nn.Linear(
+            hidden_size,
+            hidden_size,
+        )
+
+    def forward(
+            self,
+            invariant_input: torch.Tensor, # (N, input_size)
+            equivariant_input: torch.Tensor, # (N, 3)
+            invariant_hidden: torch.Tensor, # (N, hidden_size)
+            equivariant_hidden: torch.Tensor, # (N, 3, num_channels)
+            return_output: bool = False,
+    ):
+        # combine the input and the hidden equivariant
+        # (N, 3, num_channels + 1)
+        equivariant_combined = torch.cat(
+            [
+                equivariant_input.unsqueeze(-1), 
+                equivariant_hidden
+            ], 
+            dim=-1,
+        )
+
+        # compute the input and the hidden invariant
+        # (N, hidden_size + input_size)
+        invariant_combined = torch.cat(
+            [
+                invariant_input, 
+                invariant_hidden
+            ], 
+            dim=-1,
+        )
+
+        # compute invariant hidden
+        # (N, hidden_size)
+        invariant_hidden = torch.tanh(
+            self.equivariant_to_invariant(equivariant_combined) \
+            + self.invariant_to_invariant(invariant_combined)
+        )
+
+        # compute equivariant hidden
+        equivariant_hidden = self.equivariant_to_equivariant(equivariant_combined) \
+            + self.invariant_to_equivariant(equivariant_hidden, invariant_combined)
+        
+        if return_output:
+            invariant_output, equivariant_output = (
+                self.invariant_output(invariant_hidden),
+                self.equivariant_output(equivariant_hidden),
+            )
+            return (
+                invariant_hidden,
+                equivariant_hidden,
+                invariant_output,
+                equivariant_output,
+            )
+        else:
+            return invariant_hidden, equivariant_hidden
+        
 class RyeGRU(torch.nn.Module):
     def __init__(
             self,
