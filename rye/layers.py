@@ -18,7 +18,7 @@ class DotProductProjection(torch.nn.Module):
             x1 = x0
         return (self.fc_left(x0) * self.fc_right(x1)).sum(-2)
     
-class Dampening(torch.nn.Module):
+class Damping(torch.nn.Module):
     def __init__(self, input_size: int, output_size: int):
         super().__init__()
         self.fc = torch.nn.Linear(input_size, output_size, bias=False)
@@ -66,7 +66,7 @@ class RyeElman(torch.nn.Module):
             bias=False,
         )
 
-        self.invariant_to_equivariant = Dampening(
+        self.invariant_to_equivariant = Damping(
             hidden_size + input_size, 
             num_channels,
         )
@@ -151,7 +151,7 @@ class RyeGRU(torch.nn.Module):
 
         self.xr = DotProductProjection(1+num_channels, hidden_size)
         self.xz = DotProductProjection(1+num_channels, hidden_size)
-        self.xn = Dampening(hidden_size, 1)
+        self.xn = Damping(hidden_size, 1)
 
     def forward(
             self,
