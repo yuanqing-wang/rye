@@ -38,12 +38,11 @@ def test_equivariance(equivariance_test_utils):
         num_channels=num_channels,
     )
     batch_size = 10
-    batch_size = 10
     invariant_input = torch.randn(batch_size, input_size)
     equivariant_input = torch.randn(batch_size, 3)
     invariant_hidden = torch.randn(batch_size, hidden_size)
     equivariant_hidden = torch.randn(batch_size, 3, num_channels)
-    invariant_hidden, equivariant_hidden = layer(
+    _invariant_hidden, _equivariant_hidden = layer(
         invariant_input,
         equivariant_input,
         invariant_hidden,
@@ -52,7 +51,7 @@ def test_equivariance(equivariance_test_utils):
 
     equivariant_input_rotated = rotation(equivariant_input)
     equivariant_hidden_rotated = rotation(equivariant_hidden.swapaxes(-1, -2)).swapaxes(-1, -2)
-    invariant_hidden_rotated, equivariant_hidden_rotated = layer(
+    _invariant_hidden_rotated, _equivariant_hidden_rotated = layer(
         invariant_input,
         equivariant_input_rotated,
         invariant_hidden,
@@ -60,6 +59,12 @@ def test_equivariance(equivariance_test_utils):
     )
 
     assert torch.allclose(
-        invariant_hidden,
-        invariant_hidden_rotated,
+        _invariant_hidden,
+        _invariant_hidden_rotated,
+    )
+
+    assert torch.allclose(
+        rotation(_equivariant_hidden.swapaxes(-1, -2)).swapaxes(-1, -2),
+        _equivariant_hidden_rotated,
+        rtol=1e-2,
     )
