@@ -10,6 +10,7 @@ class RyeModel(torch.nn.Module):
             hidden_size: int,
             num_channels: int,
             length: int,
+            repeat: int,
             layer: RyeLayer,
     ):
         super().__init__()
@@ -20,6 +21,7 @@ class RyeModel(torch.nn.Module):
         )
         self.length = length
         self.hidden_size = hidden_size
+        self.repeat = repeat
 
     def forward(
             self,
@@ -41,23 +43,35 @@ class RyeModel(torch.nn.Module):
                 device=equivariant_input.device,
             )
 
-        walks = generate_walk(probability, self.length)
+        walks = generate_walk(probability, self.length, repeat=self.repeat)
+        
         invariant_input = invariant_input[walks]
         equivariant_input = equivariant_input[walks]
+        equivariant_hidden = equivariant_hidden.unsqueeze(-4).repeat(
+            self.repeat, 1, 1, 1,
+        )
+        invariant_hidden = invariant_hidden.unsqueeze(-3).repeat(
+            self.repeat, 1, 1,
+        )
 
         invariant_hidden_traj, equivariant_hidden_traj = [], []
         for idx in range(self.length):
-            print(invariant_hidden.shape, equivariant_hidden.shape, invariant_input.shape, equivariant_input.shape)
+            if idx == 0:
+                _equivariant_input = torch.zeros_like(equivariant_input[..., 0, :, :])
+            else:
+                _equivariant_input = equivariant_input[..., idx, :, :] \
+                    - equivariant_input[..., idx-1, :, :]
+
             invariant_hidden, equivariant_hidden = self.layer(
-                invariant_input[idx],
-                equivariant_input[idx],
+                invariant_input[..., idx, :, :],
+                _equivariant_input,
                 invariant_hidden,
                 equivariant_hidden,
             )
             invariant_hidden_traj.append(invariant_hidden)
             equivariant_hidden_traj.append(equivariant_hidden)
-        invariant_hidden_traj = torch.stack(invariant_hidden_traj, dim=0)
-        equivariant_hidden_traj = torch.stack(equivariant_hidden_traj, dim=0)
+        invariant_hidden_traj = torch.stack(invariant_hidden_traj, dim=-3)
+        equivariant_hidden_traj = torch.stack(equivariant_hidden_traj, dim=-4)
         return invariant_hidden_traj, equivariant_hidden_traj
         
         

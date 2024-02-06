@@ -88,6 +88,13 @@ class RyeElman(torch.nn.Module):
             invariant_hidden: torch.Tensor, # (N, hidden_size)
             equivariant_hidden: torch.Tensor, # (N, 3, num_channels)
     ):
+        # print(
+        #     invariant_input.shape,
+        #     equivariant_input.shape,
+        #     invariant_hidden.shape,
+        #     equivariant_hidden.shape,
+        # )
+
         # combine the input and the hidden equivariant
         # (N, 3, num_channels + 1)
         equivariant_combined = torch.cat(

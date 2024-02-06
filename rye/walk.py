@@ -2,13 +2,17 @@ import torch
 
 def next_node(current_node, probability):
     next_probability = probability[current_node]
-    return torch.multinomial(next_probability, 1).squeeze(-1)
+    repeat = next_probability.shape[-3]
+    num_nodes = next_probability.shape[-2]
+    next_probability = next_probability.view(-1, num_nodes)
+    next_node = torch.multinomial(next_probability, 1)
+    next_node = next_node.view(repeat, num_nodes)
+    return next_node
 
-def generate_walk(probability, length):
+def generate_walk(probability, length, repeat=1):
     walk = []
-    current_node = torch.arange(probability.shape[0])
+    current_node = torch.arange(probability.shape[-2]).unsqueeze(0).expand(repeat, -1)
     for _ in range(length):
-        print(current_node)
         current_node = next_node(current_node, probability)
         walk.append(current_node)
     walk = torch.stack(walk, dim=-2)

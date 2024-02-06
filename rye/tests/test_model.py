@@ -8,12 +8,14 @@ def test_forward():
     hidden_size = 16
     num_channels = 32
     length = 20
+    repeat = 40
     model = RyeModel(
         input_size=input_size,
         hidden_size=hidden_size,
         num_channels=num_channels,
         layer=RyeElman,
         length=length,
+        repeat=repeat,
     )
     batch_size = 10
     invariant_input = torch.randn(batch_size, input_size)
@@ -28,5 +30,5 @@ def test_forward():
         invariant_hidden=invariant_hidden,
         equivariant_hidden=equivariant_hidden,
     )
-    assert invariant_hidden.shape == (length, batch_size, hidden_size)
-    assert equivariant_hidden.shape == (length, batch_size, 3, num_channels)
+    assert invariant_hidden.shape == (repeat, length, batch_size, hidden_size)
+    assert equivariant_hidden.shape == (repeat, length, batch_size, 3, num_channels)
