@@ -87,7 +87,6 @@ class RyeElman(torch.nn.Module):
             equivariant_input: torch.Tensor, # (N, 3)
             invariant_hidden: torch.Tensor, # (N, hidden_size)
             equivariant_hidden: torch.Tensor, # (N, 3, num_channels)
-            return_output: bool = False,
     ):
         # combine the input and the hidden equivariant
         # (N, 3, num_channels + 1)
@@ -120,19 +119,8 @@ class RyeElman(torch.nn.Module):
         equivariant_hidden = self.equivariant_to_equivariant(equivariant_combined) \
             + self.invariant_to_equivariant(equivariant_hidden, invariant_combined)
         
-        if return_output:
-            invariant_output, equivariant_output = (
-                self.invariant_output(invariant_hidden),
-                self.equivariant_output(equivariant_hidden),
-            )
-            return (
-                invariant_hidden,
-                equivariant_hidden,
-                invariant_output,
-                equivariant_output,
-            )
-        else:
-            return invariant_hidden, equivariant_hidden
+        return invariant_hidden, equivariant_hidden
+
         
 class RyeGRU(torch.nn.Module):
     def __init__(

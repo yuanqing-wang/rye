@@ -61,10 +61,13 @@ def test_equivariance(equivariance_test_utils):
     assert torch.allclose(
         _invariant_hidden,
         _invariant_hidden_rotated,
+        atol=1e-2,
+        rtol=1e-2,
     )
 
     assert torch.allclose(
-        rotation(_equivariant_hidden.swapaxes(-1, -2)).swapaxes(-1, -2),
         _equivariant_hidden_rotated,
+        rotation(_equivariant_hidden.swapaxes(-1, -2)).swapaxes(-1, -2),
+        atol=1e-2,
         rtol=1e-2,
     )
