@@ -41,19 +41,18 @@ class RyeModel(torch.nn.Module):
                 device=equivariant_input.device,
             )
 
-
         walks = generate_walk(probability, self.length)
         invariant_input = invariant_input[walks]
         equivariant_input = equivariant_input[walks]
 
         invariant_hidden_traj, equivariant_hidden_traj = [], []
         for idx in range(self.length):
+            print(invariant_hidden.shape, equivariant_hidden.shape, invariant_input.shape, equivariant_input.shape)
             invariant_hidden, equivariant_hidden = self.layer(
-                invariant_input,
-                equivariant_input,
+                invariant_input[idx],
+                equivariant_input[idx],
                 invariant_hidden,
                 equivariant_hidden,
-                return_output=True,
             )
             invariant_hidden_traj.append(invariant_hidden)
             equivariant_hidden_traj.append(equivariant_hidden)

@@ -15,3 +15,4 @@ def generate_walk(probability, length):
     return walk
 
 
+ 
