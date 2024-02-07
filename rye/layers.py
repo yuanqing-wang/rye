@@ -172,4 +172,37 @@ class RyeGRU(torch.nn.Module):
         nx = self.xn(x_combined, ny).squeeze(-1)
         y = (1 - z) * ny + z * yh
         return nx, y
-        
+
+
+def get_distance(x):
+    delta_x = x.unsqueeze(-2) - x.unsqueeze(-3)
+    distance = (delta_x ** 2).sum(-1)
+    return distance
+
+class RadialProbability(torch.nn.Module):
+    def __init__(self, alpha):
+        super().__init__()
+        self.alpha = alpha
+
+    def forward(self, x=None, distance=None):
+        if distance is None:
+            distance = get_distance(x)
+        distance = distance / self.alpha
+        return distance.softmax(-1)
+
+class MeanReadout(torch.nn.Module):
+    def __init__(
+            self,
+            in_features: int,
+            out_features: int,
+            activation: torch.nn.Module = torch.nn.SiLU(),
+    ):
+        super().__init__()
+        self.fc = torch.nn.Sequential(
+            torch.nn.Linear(in_features, in_features),
+            activation,
+            torch.nn.Linear(in_features, out_features),
+        )
+
+    def forward(self, x):
+        return self.fc(x[..., -1, :, :].mean(-3))

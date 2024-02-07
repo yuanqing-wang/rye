@@ -22,6 +22,7 @@ class RyeModel(torch.nn.Module):
         self.length = length
         self.hidden_size = hidden_size
         self.repeat = repeat
+        self.num_channels = num_channels
 
     def forward(
             self,
