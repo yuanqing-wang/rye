@@ -87,6 +87,9 @@ def run(args):
         layer=RyeElman,
     )
 
+    if torch.cuda.is_available():
+        model = model.cuda()
+
     readout = MeanReadout(args.hidden_size, 1)
 
     optimizer = torch.optim.Adam(
