@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from functools import partial
+INF = 1e6
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, R, Z, y):
@@ -17,9 +18,13 @@ class Dataset(torch.utils.data.Dataset):
     
 def get_mask(N):
     mask = torch.zeros(sum(N), sum(N), dtype=torch.bool)
+    N_cumsum = N.cumsum(0)
+    mask[:N[0], :N[0]] = 1
     for idx in range(len(N)-1):
-        mask[N[idx]:N[idx+1], N[idx]:N[idx+1]] = 1
-    mask[N[-1]:, N[-1]:] = 1
+        mask[
+            N_cumsum[idx]:N_cumsum[idx+1],
+            N_cumsum[idx]:N_cumsum[idx+1],
+        ] = 1
     return mask
 
 def collate_fn(batch, Z_max):
@@ -87,10 +92,11 @@ def run(args):
         layer=RyeElman,
     )
 
+    readout = MeanReadout(args.hidden_size, 1)
+
     if torch.cuda.is_available():
         model = model.cuda()
-
-    readout = MeanReadout(args.hidden_size, 1)
+        readout = readout.cuda()
 
     optimizer = torch.optim.Adam(
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
@@ -98,10 +104,12 @@ def run(args):
 
     for idx in range(args.epochs):
         for R, Z, y, N in dl_tr:
+            if torch.cuda.is_available():
+                R, Z, y, N = R.cuda(), Z.cuda(), y.cuda(), N.cuda()
             optimizer.zero_grad()
             mask = get_mask(N)
             distance = get_distance(R)
-            distance[mask.bool()] = 10000.0
+            distance[~mask.bool()] = INF
             probability = RadialProbability(alpha=args.alpha)(distance=distance)
             y_hat, _ = model(
                 probability=probability,
@@ -133,15 +141,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", type=str, default='mu')
     parser.add_argument("--seed", type=int, default=2666)
-    parser.add_argument("--hidden_size", type=int, default=16)
+    parser.add_argument("--hidden_size", type=int, default=64)
     parser.add_argument("--num_channels", type=int, default=32)
-    parser.add_argument("--length", type=int, default=20)
+    parser.add_argument("--length", type=int, default=8)
     parser.add_argument("--repeat", type=int, default=4)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight_decay", type=float, default=1e-5)
+    parser.add_argument("--weight_decay", type=float, default=1e-10)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--patience", type=int, default=10)
-    parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument("--alpha", type=float, default=10.0)
     args = parser.parse_args()
     run(args)

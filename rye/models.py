@@ -44,8 +44,7 @@ class RyeModel(torch.nn.Module):
                 device=equivariant_input.device,
             )
 
-        walks = generate_walk(probability, self.length, repeat=self.repeat)
-        
+        walks = generate_walk(probability, self.length, repeat=self.repeat).flip(-2)
         invariant_input = invariant_input[walks]
         equivariant_input = equivariant_input[walks]
         equivariant_hidden = equivariant_hidden.unsqueeze(-4).repeat(

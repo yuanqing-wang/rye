@@ -10,8 +10,8 @@ def next_node(current_node, probability):
     return next_node
 
 def generate_walk(probability, length, repeat=1):
-    walk = []
-    current_node = torch.arange(probability.shape[-2]).unsqueeze(0).expand(repeat, -1)
+    current_node = torch.arange(probability.shape[-2], device=probability.device).unsqueeze(0).expand(repeat, -1)
+    walk = [current_node]
     for _ in range(length):
         current_node = next_node(current_node, probability)
         walk.append(current_node)

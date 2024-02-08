@@ -3,6 +3,9 @@ from typing import Optional
 import torch
 from typing import Tuple
 
+INF = 1e6
+EPSILON = 1e-6
+
 class DotProductProjection(torch.nn.Module):
     def __init__(self, input_size: int, output_size: int):
         super().__init__()
@@ -16,6 +19,10 @@ class DotProductProjection(torch.nn.Module):
         ):
         if x1 is None:
             x1 = x0
+        norm_left = x0.pow(2).sum(-2, keepdim=True) + EPSILON
+        norm_right = x1.pow(2).sum(-2, keepdim=True) + EPSILON
+        x0 = x0 / norm_left
+        x1 = x1 / norm_right
         return (self.fc_left(x0) * self.fc_right(x1)).sum(-2)
     
 class Damping(torch.nn.Module):
@@ -88,12 +95,6 @@ class RyeElman(torch.nn.Module):
             invariant_hidden: torch.Tensor, # (N, hidden_size)
             equivariant_hidden: torch.Tensor, # (N, 3, num_channels)
     ):
-        # print(
-        #     invariant_input.shape,
-        #     equivariant_input.shape,
-        #     invariant_hidden.shape,
-        #     equivariant_hidden.shape,
-        # )
 
         # combine the input and the hidden equivariant
         # (N, 3, num_channels + 1)
@@ -188,7 +189,9 @@ class RadialProbability(torch.nn.Module):
         if distance is None:
             distance = get_distance(x)
         distance = distance / self.alpha
-        return distance.softmax(-1)
+        distance.fill_diagonal_(INF)
+        probability = (-distance).softmax(-1)
+        return probability
 
 class MeanReadout(torch.nn.Module):
     def __init__(

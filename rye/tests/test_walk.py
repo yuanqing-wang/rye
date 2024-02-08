@@ -10,7 +10,7 @@ def test_generate_walk():
     ])
     length = 10
     walk = generate_walk(probability, length, repeat=2)
-    assert walk.shape == (2, 10, 3)
+    assert walk.shape == (2, 11, 3)
 
 # def test_batch_walk():
 #     import torch
