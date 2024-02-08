@@ -51,7 +51,7 @@ def run(args):
     Z_max = max(Z)
     R = np.split(R, np.cumsum(N)[:-1])
     Z = np.split(Z, np.cumsum(N)[:-1])
-    idxs = np.arange(len(R))
+    idxs = np.arange(len(R))[:100]
     np.random.seed(args.seed)
     np.random.shuffle(idxs)
     idxs_tr, idxs_vl, idxs_te = np.split(
@@ -119,23 +119,21 @@ def run(args):
             y_hat = readout(y_hat)
             index = torch.repeat_interleave(
                 torch.arange(len(N), device=y_hat.device), N,
-            ).unsqueeze(-1)
+            )# .unsqueeze(-1)
 
             y_hat = torch.scatter_add(
-                src=y_hat,
-                input=torch.zeros(len(N), 1, device=y_hat.device),
+                src=y_hat.squeeze(-1),
+                input=torch.zeros(len(N), device=y_hat.device),
                 index=index,
                 dim=0,
             )
 
-            loss = torch.nn.functional.mse_loss(y_hat, y)
+            loss = torch.nn.functional.mse_loss(y_hat, y.squeeze(-1))
             loss.backward()
-            print(loss)
+            print(loss, flush=True)
 
             optimizer.step()
     
-
-
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
@@ -146,9 +144,9 @@ if __name__ == '__main__':
     parser.add_argument("--length", type=int, default=8)
     parser.add_argument("--repeat", type=int, default=4)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--weight_decay", type=float, default=1e-10)
-    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--epochs", type=int, default=1000000)
     parser.add_argument("--patience", type=int, default=10)
     parser.add_argument("--alpha", type=float, default=10.0)
     args = parser.parse_args()
