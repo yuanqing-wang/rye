@@ -3,6 +3,7 @@ import torch
 def next_node(current_node, probability):
     # next_probability = probability[current_node]
     next_probability = torch.gather(probability, -1, current_node)
+    import pdb; pdb.set_trace()
 
 
 
@@ -15,7 +16,6 @@ def next_node(current_node, probability):
 
 def generate_walk(probability, length, repeat=1):
     # (BATCH_SIZE, NUM_NODES, NUM_NODES)
-    import pdb; pdb.set_trace()
     current_node = torch.arange(probability.shape[-2], device=probability.device).unsqueeze(0).expand(repeat, -1)
     current_node = current_node.broadcast_to((*probability.shape[:-2], *current_node.shape))
     walk = [current_node]
