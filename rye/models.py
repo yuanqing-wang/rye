@@ -23,6 +23,7 @@ class RyeModel(torch.nn.Module):
         self.hidden_size = hidden_size
         self.repeat = repeat
         self.num_channels = num_channels
+        self.input_size = input_size
 
     def forward(
             self,
@@ -47,11 +48,11 @@ class RyeModel(torch.nn.Module):
         walks = generate_walk(probability, self.length, repeat=self.repeat).flip(-2)
         invariant_input = invariant_input[walks]
         equivariant_input = equivariant_input[walks]
-        equivariant_hidden = equivariant_hidden.unsqueeze(-4).repeat(
-            self.repeat, 1, 1, 1,
+        equivariant_hidden = equivariant_hidden.unsqueeze(-4).repeat_interleave(
+            self.repeat, dim=-4
         )
-        invariant_hidden = invariant_hidden.unsqueeze(-3).repeat(
-            self.repeat, 1, 1,
+        invariant_hidden = invariant_hidden.unsqueeze(-3).repeat_interleave(
+            self.repeat, dim=-3,
         )
 
         invariant_hidden_traj, equivariant_hidden_traj = [], []

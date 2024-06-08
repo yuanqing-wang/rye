@@ -1,12 +1,16 @@
 import torch
 import lightning as pl
 
-class MD17Model(pl.Module):
+class MD17Model(pl.LightningModule):
     def __init__(
             self,
             model: torch.nn.Module,
-            lr: float,
-            weight_decay: float,
+            lr: float = 1e-3,
+            weight_decay: float = 1e-10,
+            factor: float = 0.5,
+            patience: int = 10,
+            E_STD: float = 1.0,
+            E_MEAN: float = 0.0,
     ):
         super().__init__()
         self.model = model
@@ -14,14 +18,16 @@ class MD17Model(pl.Module):
 
     def forward(
             self,
-            x: torch.Tensor,
+            Z: torch.Tensor,
+            R: torch.Tensor,
     ):
-        return self.model(x)
+        probability = torch.ones(Z.shape[-3], Z.shape[-2], Z.shape[-2])
+        return self.model(probability, Z, R)
     
     def training_step(self, batch, batch_idx):
         R, E, F, Z = batch
         R.requires_grad_(True)
-        E_hat = self(R)
+        E_hat = self(Z, R)
         F_hat = -torch.autograd.grad(E_hat.sum(), R, create_graph=True)[0]
         loss_energy = torch.nn.functional.mse_loss(E_hat, E)
         self.log("train_loss_energy", loss_energy.item() ** 0.5 * self.hparams.E_STD)
@@ -34,7 +40,7 @@ class MD17Model(pl.Module):
         R, E, F, Z = batch
         R.requires_grad_(True)
         with torch.set_grad_enabled(True):
-            E_hat = self(R) * self.hparams.E_STD + self.hparams.E_MEAN
+            E_hat = self(Z, R) * self.hparams.E_STD + self.hparams.E_MEAN
             F_hat = -torch.autograd.grad(E_hat.sum(), R, create_graph=True)[0]
         loss_energy = torch.nn.functional.l1_loss(E_hat, E)
         loss_force = torch.nn.functional.l1_loss(F_hat, F)
@@ -53,7 +59,7 @@ class MD17Model(pl.Module):
         R, E, F, Z = batch
         R.requires_grad_(True)
         with torch.set_grad_enabled(True):
-            E_hat = self(R) * self.hparams.E_STD + self.hparams.E_MEAN
+            E_hat = self(Z, R) * self.hparams.E_STD + self.hparams.E_MEAN
             F_hat = -torch.autograd.grad(E_hat.sum(), R, create_graph=True)[0]
         loss_energy = torch.nn.functional.l1_loss(E_hat, E)
         loss_force = torch.nn.functional.l1_loss(F_hat, F)

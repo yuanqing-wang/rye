@@ -12,7 +12,7 @@ def run(args):
     data.setup()
 
     from rye.layers import RyeElman
-    from rye.model import RyeModel
+    from rye.models import RyeModel
     model = RyeModel(
         input_size=data.in_features,
         hidden_size=args.hidden_features,
@@ -23,6 +23,13 @@ def run(args):
     )
 
     from rye.wrapper import MD17Model
+    model = MD17Model(
+        model=model,
+        E_MEAN=data.E_MEAN,
+        E_STD=data.E_STD,
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+    )
 
     trainer = pl.Trainer(
         max_epochs=10000, 
@@ -31,7 +38,6 @@ def run(args):
         devices="auto",
         accelerator="auto",
         enable_progress_bar=False,
-        callbacks=[_TuneReportCallback(metrics="val_loss_energy")],
     )
     trainer.fit(model, data)
     model.unfreeze()
@@ -45,7 +51,9 @@ if __name__ == "__main__":
     parser.add_argument("--data", type=str, default="ethanol")
     parser.add_argument("--heads", type=int, default=4)
     parser.add_argument("--depth", type=int, default=1)
+    parser.add_argument("--length", type=int, default=10)
     parser.add_argument("--hidden_features", type=int, default=64)
+    parser.add_argument("--num_samples", type=int, default=1)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--weight_decay", type=float, default=1e-10)
     parser.add_argument("--batch_size", type=int, default=128)
