@@ -5,6 +5,82 @@ from typing import Tuple
 
 INF = 1e6
 EPSILON = 1e-6
+NUM_RBF = 50
+CUTOFF_LOWER = 1e-12
+CUTOFF_UPPER = 5.0
+
+class ExpNormalSmearing(torch.nn.Module):
+    def __init__(
+        self,
+        cutoff_lower=CUTOFF_LOWER,
+        cutoff_upper=CUTOFF_UPPER,
+        num_rbf=NUM_RBF,
+        trainable=False,
+    ):
+        super(ExpNormalSmearing, self).__init__()
+        self.cutoff_lower = cutoff_lower
+        self.cutoff_upper = cutoff_upper
+        self.num_rbf = num_rbf
+        self.trainable = trainable
+        self.alpha = 5.0 / (cutoff_upper - cutoff_lower)
+
+        means, betas = self._initial_params()
+        if trainable:
+            self.register_parameter("means", torch.nn.Parameter(means))
+            self.register_parameter("betas", torch.nn.Parameter(betas))
+        else:
+            self.register_buffer("means", means)
+            self.register_buffer("betas", betas)
+
+        self.out_features = self.num_rbf
+
+    def _initial_params(self):
+        # initialize means and betas according to the default values in PhysNet
+        # https://pubs.acs.org/doi/10.1021/acs.jctc.9b00181
+        start_value = torch.exp(
+            torch.scalar_tensor(-self.cutoff_upper + self.cutoff_lower)
+        )
+        means = torch.linspace(start_value, 1, self.num_rbf)
+        betas = torch.tensor(
+            [(2 / self.num_rbf * (1 - start_value)) ** -2] * self.num_rbf
+        )
+        return means, betas
+
+    def reset_parameters(self):
+        means, betas = self._initial_params()
+        self.means.data.copy_(means)
+        self.betas.data.copy_(betas)
+
+    def forward(self, dist):
+        return torch.exp(
+            -self.betas
+            * (
+                torch.exp(self.alpha * (-dist + self.cutoff_lower))
+                - self.means
+            )
+            ** 2
+        )
+    
+class Smeared(torch.nn.Module):
+    def __init__(
+        self,
+        hidden_size,
+    ):
+        super().__init__()
+        self.fc = torch.nn.Sequential(
+            torch.nn.Linear(NUM_RBF, hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, hidden_size),
+        )
+
+        self.smearing = ExpNormalSmearing(num_rbf=NUM_RBF)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+    ):
+        distance = get_distance(x).unsqueeze(-1)
+        return self.fc(self.smearing(distance)).mean(-2)
 
 class DotProductProjection(torch.nn.Module):
     def __init__(self, input_size: int, output_size: int):
@@ -88,6 +164,8 @@ class RyeElman(torch.nn.Module):
             hidden_size,
         )
 
+        self.rbf = Smeared(hidden_size)
+
     def forward(
             self,
             invariant_input: torch.Tensor, # (N, input_size)
@@ -95,6 +173,7 @@ class RyeElman(torch.nn.Module):
             invariant_hidden: torch.Tensor, # (N, hidden_size)
             equivariant_hidden: torch.Tensor, # (N, 3, num_channels)
     ):
+
         # combine the input and the hidden equivariant
         # (N, 3, num_channels + 1)
         equivariant_combined = torch.cat(
@@ -119,7 +198,8 @@ class RyeElman(torch.nn.Module):
         # (N, hidden_size)
         invariant_hidden = torch.tanh(
             self.equivariant_to_invariant(equivariant_combined) \
-            + self.invariant_to_invariant(invariant_combined)
+            + self.invariant_to_invariant(invariant_combined) \
+            + self.rbf(equivariant_input)
         )
 
         # compute equivariant hidden

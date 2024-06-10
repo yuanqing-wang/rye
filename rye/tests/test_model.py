@@ -16,6 +16,7 @@ def test_forward():
         layer=RyeElman,
         length=length,
         repeat=repeat,
+        depth=2,
     )
     batch_size = 10
     invariant_input = torch.randn(batch_size, input_size)
