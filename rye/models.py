@@ -44,10 +44,19 @@ class RyeModel(torch.nn.Module):
                 *equivariant_input.shape, self.num_channels,
                 device=equivariant_input.device,
             )
+        probability = probability.unsqueeze(-3).repeat_interleave(self.repeat, dim=-3)
+        walks = generate_walk(probability, self.length).flip(-2)
 
-        walks = generate_walk(probability, self.length, repeat=self.repeat).flip(-2)
-        invariant_input = invariant_input[walks]
-        equivariant_input = equivariant_input[walks]
+        def indexing(_input, walks):
+            return _input[walks]
+
+        if invariant_input.dim() == 2:
+            invariant_input = indexing(invariant_input, walks)
+            equivariant_input = indexing(equivariant_input, walks)
+        else:
+            invariant_input = torch.vmap(indexing, in_dims=(0, 0))(invariant_input, walks)
+            equivariant_input = torch.vmap(indexing, in_dims=(0, 0))(equivariant_input, walks)
+
         equivariant_hidden = equivariant_hidden.unsqueeze(-4).repeat_interleave(
             self.repeat, dim=-4
         )
@@ -62,7 +71,7 @@ class RyeModel(torch.nn.Module):
             else:
                 _equivariant_input = equivariant_input[..., idx, :, :] \
                     - equivariant_input[..., idx-1, :, :]
-
+                
             invariant_hidden, equivariant_hidden = self.layer(
                 invariant_input[..., idx, :, :],
                 _equivariant_input,
@@ -73,6 +82,7 @@ class RyeModel(torch.nn.Module):
             equivariant_hidden_traj.append(equivariant_hidden)
         invariant_hidden_traj = torch.stack(invariant_hidden_traj, dim=-3)
         equivariant_hidden_traj = torch.stack(equivariant_hidden_traj, dim=-4)
+
         return invariant_hidden_traj, equivariant_hidden_traj
         
         

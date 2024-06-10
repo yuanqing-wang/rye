@@ -53,7 +53,7 @@ if __name__ == "__main__":
     parser.add_argument("--depth", type=int, default=1)
     parser.add_argument("--length", type=int, default=10)
     parser.add_argument("--hidden_features", type=int, default=64)
-    parser.add_argument("--num_samples", type=int, default=1)
+    parser.add_argument("--num_samples", type=int, default=2)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--weight_decay", type=float, default=1e-10)
     parser.add_argument("--batch_size", type=int, default=128)

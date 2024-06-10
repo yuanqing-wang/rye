@@ -1,10 +1,12 @@
 import torch
 import lightning as pl
+from .layers import MeanReadout
 
 class MD17Model(pl.LightningModule):
     def __init__(
             self,
             model: torch.nn.Module,
+            readout: torch.nn.Module = MeanReadout,
             lr: float = 1e-3,
             weight_decay: float = 1e-10,
             factor: float = 0.5,
@@ -14,7 +16,13 @@ class MD17Model(pl.LightningModule):
     ):
         super().__init__()
         self.model = model
-        self.save_hyperparameters(ignore='model')
+        self.readout = readout(
+            in_features=model.hidden_size,
+            out_features=1,
+        )
+        self.save_hyperparameters(ignore=["model", "readout"])
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
 
     def forward(
             self,
@@ -22,7 +30,9 @@ class MD17Model(pl.LightningModule):
             R: torch.Tensor,
     ):
         probability = torch.ones(Z.shape[-3], Z.shape[-2], Z.shape[-2])
-        return self.model(probability, Z, R)
+        Y, _ = self.model(probability, Z, R)
+        Y = self.readout(Y).sum(-2)
+        return Y
     
     def training_step(self, batch, batch_idx):
         R, E, F, Z = batch
