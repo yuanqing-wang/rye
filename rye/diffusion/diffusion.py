@@ -53,6 +53,8 @@ class Diffusion(torch.nn.Module):
         c = -torch.special.expm1(log_snr - log_snr_next)
         alpha, sigma = log_snr.sigmoid().sqrt(), (-log_snr).sigmoid().sqrt()
         alpha_next, sigma_next = log_snr_next.sigmoid().sqrt(), (-log_snr_next).sigmoid().sqrt() 
+        t = torch.stack([t.cos(), t.sin()], dim=-1)
+        t = t.broadcast_to(*x.shape[:-1], 2)
         epsilon_hat = model(x, t=t)
         x_start = (x - sigma * epsilon_hat) / alpha
         x_start.clamp_(min=-1, max=1)
@@ -75,14 +77,15 @@ class Diffusion(torch.nn.Module):
         return p_mean + epsilon * p_variance.sqrt()
     
     @torch.no_grad()
-    def p_sample_loop(
+    def sample(
         self,
         model: Callable,
         shape: torch.Size,
     ):
-        x = torch.randn(shape, device=self.device)
+        device = next(model.parameters()).device
+        x = torch.randn(shape, device=device)
         steps = torch.linspace(
-            1.0, 0.0, self.steps + 1, device=self.device
+            1.0, 0.0, self.steps + 1, device=device
         )
         for i in range(self.steps):
             x = self.p_sample(model, x, steps[i], steps[i + 1])

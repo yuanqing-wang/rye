@@ -1,4 +1,5 @@
 import torch
+import tqdm
 
 def test_mnist():
     from torchvision import datasets, transforms
@@ -9,6 +10,8 @@ def test_mnist():
             self.model = torch.nn.Sequential(
                 torch.nn.Linear(784 + 2, 128),
                 torch.nn.SiLU(),
+                torch.nn.Linear(128, 128),
+                torch.nn.SiLU(),
                 torch.nn.Linear(128, 784),
             )
 
@@ -17,7 +20,11 @@ def test_mnist():
 
     # Load the MNIST dataset
     mnist = datasets.MNIST('data', train=True, download=True,
-                           transform=transforms.ToTensor())
+                           transform=transforms.Compose([
+                                 transforms.ToTensor(),
+                                 transforms.Normalize((0.1307,), (0.3081,))
+                            ])
+                           )
 
     # Create a DataLoader
     dataloader = torch.utils.data.DataLoader(mnist, batch_size=64, shuffle=True)
@@ -30,10 +37,23 @@ def test_mnist():
     diffusion = Diffusion()
 
     # train model
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    for x, y in dataloader:
+        optimizer.zero_grad()
+        x = x.view(x.size(0), -1)
+        loss = diffusion.loss(model, x)
+        loss.backward()
+        optimizer.step()
 
-    for _ in range(10):
-        for x, y in dataloader:
-            x = x.view(x.size(0), -1)
-            loss = diffusion.loss(model, x)
-            print(loss.item())
+    # inference
+    x, _ = next(iter(dataloader))
+    original_shape = x.shape
+    x = x.view(x.size(0), -1)
+    shape = x.shape
+    x = diffusion.sample(shape=shape, model=model)
+    x = x.view(original_shape)
+
+    # save the image
+    import matplotlib.pyplot as plt
+    for idx in range(10):
+        plt.imsave(f'sample{idx}.png', x[idx].squeeze().detach().numpy(), cmap='gray')
