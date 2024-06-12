@@ -131,6 +131,7 @@ class RyeElman(torch.nn.Module):
             input_size: int,
             hidden_size: int,
             num_channels: int,
+            hide_invariant: bool = False,
     ):
         super().__init__()
         self.equivariant_to_invariant = DotProductProjection(
@@ -165,6 +166,7 @@ class RyeElman(torch.nn.Module):
         )
 
         self.rbf = Smeared(hidden_size)
+        self.hide_invariant = hide_invariant
 
     def forward(
             self,
@@ -206,6 +208,9 @@ class RyeElman(torch.nn.Module):
         equivariant_hidden = self.equivariant_to_equivariant(equivariant_combined) \
             + self.invariant_to_equivariant(equivariant_hidden, invariant_combined)
         
+
+        if self.hide_invariant:
+            return equivariant_hidden
         return invariant_hidden, equivariant_hidden
 
         

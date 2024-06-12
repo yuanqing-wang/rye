@@ -17,6 +17,7 @@ class Diffusion(torch.nn.Module):
     def loss(
             self,
             x: torch.Tensor,
+            **kwargs,
     ):
         # sample time
         t = torch.empty(
@@ -34,7 +35,7 @@ class Diffusion(torch.nn.Module):
         x_noised =  x * alpha + epsilon * sigma
 
         # calculate the loss
-        epsilon_hat = self.model(x_noised)
+        epsilon_hat = self.model(x_noised, **kwargs)
         loss = (epsilon_hat - epsilon).pow(2).mean()
         return loss
     
@@ -43,13 +44,14 @@ class Diffusion(torch.nn.Module):
             x: torch.Tensor,
             t: torch.Tensor,
             t_next: torch.Tensor,
+            **kwargs,
     ):
         log_snr = self.schedule(t)
         log_snr_next = self.schedule(t_next)
         c = torch.special.expm1(log_snr_next - log_snr)
         alpha, sigma = log_snr.sigmoid().sqrt(), (-log_snr).sigmoid().sqrt()
         alpha_next, sigma_next = log_snr_next.sigmoid().sqrt(), (-log_snr_next).sigmoid().sqrt() 
-        epsilon_hat = self.model(x)
+        epsilon_hat = self.model(x, **kwargs)
         x_start = (x - sigma * epsilon_hat) / alpha
         x_start.clamp_(min=-1, max=1)
         p_mean = alpha_next * (x * (1 - c) / alpha + c * x_start)
