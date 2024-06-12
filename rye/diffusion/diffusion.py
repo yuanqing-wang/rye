@@ -20,6 +20,7 @@ class Diffusion(torch.nn.Module):
         # sample time
         t = torch.empty(
             x.size(0),
+            device=x.device,
         ).uniform_(0, 1)
 
         # sample noise

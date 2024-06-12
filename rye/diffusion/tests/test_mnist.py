@@ -36,14 +36,22 @@ def test_mnist():
     from rye.diffusion.diffusion import Diffusion
     diffusion = Diffusion()
 
+    if torch.cuda.is_available():
+        model = model.cuda()
+
+
     # train model
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
-    for x, y in dataloader:
-        optimizer.zero_grad()
-        x = x.view(x.size(0), -1)
-        loss = diffusion.loss(model, x)
-        loss.backward()
-        optimizer.step()
+    for _ in tqdm.tqdm(range(1000)):
+        for x, y in dataloader:
+            if torch.cuda.is_available():
+                x = x.cuda()
+            optimizer.zero_grad()
+            x = x.view(x.size(0), -1)
+            loss = diffusion.loss(model, x)
+            loss.backward()
+            print(loss)
+            optimizer.step()
 
     # inference
     x, _ = next(iter(dataloader))
@@ -57,3 +65,7 @@ def test_mnist():
     import matplotlib.pyplot as plt
     for idx in range(10):
         plt.imsave(f'sample{idx}.png', x[idx].squeeze().detach().numpy(), cmap='gray')
+
+
+if __name__ == '__main__':
+    test_mnist()
