@@ -20,6 +20,13 @@ class DiffusionModel(torch.nn.Module):
         self.num_samples = num_samples
         self.length = length
 
+    def model(
+            self,
+            x: torch.Tensor,
+            t: torch.Tensor,
+    ):
+        raise NotImplementedError
+
     def loss(
             self,
             g: dgl.DGLGraph,
