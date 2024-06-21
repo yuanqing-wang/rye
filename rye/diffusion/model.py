@@ -1,7 +1,7 @@
 import torch
 import dgl
 from ..graph_walk import uniform_random_walk
-from ..layer import RyeElman
+from ..layers import RyeElman
 from .diffusion import Diffusion
 
 class DiffusionModel(torch.nn.Module):
@@ -10,13 +10,13 @@ class DiffusionModel(torch.nn.Module):
             in_features: int,
             hidden_features: int,
             num_samples: int = 1,
-            length: int = 1,
+            length: int = 2,
             steps: int = 100,
     ):
         super().__init__()
         self.fc_in = torch.nn.Linear(in_features, hidden_features)
         self.layer = RyeElman(hidden_features, hidden_features, hidden_features)
-        self.diffusion = Diffusion(model=self.layer, steps=steps, hide_invariant=True)
+        self.diffusion = Diffusion(steps=steps)
         self.num_samples = num_samples
         self.length = length
 
@@ -40,9 +40,10 @@ class DiffusionModel(torch.nn.Module):
         def indexing(x, walks):
             return x[walks]
 
-        batch_indexing = torch.vmap(indexing, in_dims = (0, 0))(x, walks)
+        batch_indexing = torch.vmap(indexing, in_dims = (0, 0))
         equivariant_input, invariant_input = batch_indexing(h, walks), batch_indexing(x, walks)
 
+        model = lambda x, t: self.layer(x)
         loss = 0.0
         # run the model
         for idx in range(self.length):
@@ -53,9 +54,9 @@ class DiffusionModel(torch.nn.Module):
                     - equivariant_input[..., idx-1, :, :]
             
             _loss = self.diffusion.loss(
-                invariant_input[..., idx, :, :],
-                equivariant_input=_equivariant_input,
-
+                # invariant_input[..., idx, :, :],
+                model=model,
+                x=_equivariant_input,
             )
 
             loss = loss + _loss
