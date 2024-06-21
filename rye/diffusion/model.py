@@ -60,6 +60,16 @@ class DiffusionModel(torch.nn.Module):
                 _equivariant_input = equivariant_input[..., idx, :, :] \
                     - equivariant_input[..., idx-1, :, :]
             
+            invariant_input = invariant_input[..., idx, :, :]
+
+            invariant_hidden, equivariant_hidden = model(
+                invariant_input=invariant_input,
+                equivariant_input=_equivariant_input,
+                invariant_hidden=invariant_hidden,
+                equivariant_hidden=equivariant_hidden,
+            )
+
+
             _loss = self.diffusion.loss(
                 # invariant_input[..., idx, :, :],
                 model=model,
