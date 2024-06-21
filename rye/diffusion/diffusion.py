@@ -38,7 +38,6 @@ class Diffusion(torch.nn.Module):
         x_noised = x * alpha + epsilon * sigma
 
         # calculate the loss
-        t = torch.stack([t.cos(), t.sin()], dim=-1)
         epsilon_hat = model(x_noised, t=t)
         loss = torch.nn.MSELoss()(epsilon_hat, epsilon)
         return loss
@@ -54,8 +53,7 @@ class Diffusion(torch.nn.Module):
         c = -torch.special.expm1(log_snr - log_snr_next)
         alpha, sigma = log_snr.sigmoid().sqrt(), (-log_snr).sigmoid().sqrt()
         alpha_next, sigma_next = log_snr_next.sigmoid().sqrt(), (-log_snr_next).sigmoid().sqrt() 
-        t = torch.stack([t.cos(), t.sin()], dim=-1)
-        t = t.broadcast_to(*x.shape[:-1], 2)
+        t = t * torch.ones(x.size(0), device=x.device)
         epsilon_hat = model(x, t=t)
         x_start = (x - sigma * epsilon_hat) / alpha
         x_start.clamp_(min=-1, max=1)
