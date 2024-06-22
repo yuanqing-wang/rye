@@ -6,7 +6,7 @@ def test_molecule_diffusion():
     caffeine = Molecule.from_smiles("CN1C=NC2=C1C(=O)N(C(=O)N2C)C")
     caffeine.generate_conformers(n_conformers=1)
     x = caffeine.conformers[0].magnitude
-    x = torch.tensor(np.array(x))
+    x = torch.tensor(np.array(x)).float()
 
     from dgllife.utils import (
         MolToBigraph,
@@ -16,7 +16,7 @@ def test_molecule_diffusion():
         node_featurizer=CanonicalAtomFeaturizer(),
     )
     g = mol_to_bigraph(caffeine.to_rdkit())
-    h = g.ndata["h"]
+    h = g.ndata["h"].float()
     h, x = h.unsqueeze(0), x.unsqueeze(0)
 
     from rye.diffusion.model import DiffusionModel
